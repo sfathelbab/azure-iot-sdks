@@ -256,6 +256,9 @@ public:
     MOCK_STATIC_METHOD_1(, const char*, STRING_c_str, STRING_HANDLE, s)
     MOCK_METHOD_END(const char*, BASEIMPLEMENTATION::STRING_c_str(s))
 
+    MOCK_STATIC_METHOD_1(, STRING_HANDLE, STRING_clone, STRING_HANDLE, s)
+    MOCK_METHOD_END(STRING_HANDLE, BASEIMPLEMENTATION::STRING_clone(s))
+        
     /* IoTHubClient mocks*/
     MOCK_STATIC_METHOD_2(, IOTHUBMESSAGE_DISPOSITION_RESULT, IoTHubClient_LL_MessageCallback, IOTHUB_CLIENT_LL_HANDLE, handle, IOTHUB_MESSAGE_HANDLE, message)
     MOCK_METHOD_END(IOTHUBMESSAGE_DISPOSITION_RESULT, IOTHUBMESSAGE_ACCEPTED)
@@ -484,6 +487,7 @@ DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubTransportMqttMocks, , STRING_HANDLE, STRING_
 DECLARE_GLOBAL_MOCK_METHOD_2(CIoTHubTransportMqttMocks, , int, STRING_concat, STRING_HANDLE, s1, const char*, s2);
 DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubTransportMqttMocks, , void, STRING_delete, STRING_HANDLE, s);
 DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubTransportMqttMocks, , const char*, STRING_c_str, STRING_HANDLE, s);
+DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubTransportMqttMocks, , STRING_HANDLE, STRING_clone, STRING_HANDLE, s);
 
 DECLARE_GLOBAL_MOCK_METHOD_2(CIoTHubTransportMqttMocks, , IOTHUB_MESSAGE_HANDLE, IoTHubMessage_CreateFromByteArray, const unsigned char*, buffer, size_t, size);
 DECLARE_GLOBAL_MOCK_METHOD_3(CIoTHubTransportMqttMocks, , IOTHUB_MESSAGE_RESULT, IoTHubMessage_GetByteArray, IOTHUB_MESSAGE_HANDLE, iotHubMessageHandle, const unsigned char**, buffer, size_t*, size);
@@ -3207,7 +3211,7 @@ BEGIN_TEST_SUITE(iothubtransportmqtt)
         EXPECTED_CALL(mocks, STRING_c_str(IGNORED_PTR_ARG));
 
         // act
-        auto devHandle = IoTHubTransportMqtt_Register(handle, TEST_DEVICE_ID, TEST_DEVICE_KEY, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
+        auto devHandle = IoTHubTransportMqtt_Register(handle, &TEST_DEVICE_1, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
 
         // assert
         ASSERT_IS_NOT_NULL(devHandle);
@@ -3227,7 +3231,7 @@ BEGIN_TEST_SUITE(iothubtransportmqtt)
         SetupIothubTransportConfig(&config, TEST_DEVICE_ID, TEST_DEVICE_KEY, TEST_IOTHUB_NAME, TEST_IOTHUB_SUFFIX, TEST_PROTOCOL_GATEWAY_HOSTNAME);
 
         auto handle = IoTHubTransportMqtt_Create(&config);
-        auto devHandle = IoTHubTransportMqtt_Register(handle, TEST_DEVICE_ID, TEST_DEVICE_KEY, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
+        auto devHandle = IoTHubTransportMqtt_Register(handle, &TEST_DEVICE_1, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
 
         mocks.ResetAllCalls();
 
@@ -3235,7 +3239,7 @@ BEGIN_TEST_SUITE(iothubtransportmqtt)
         EXPECTED_CALL(mocks, STRING_c_str(IGNORED_PTR_ARG));
 
         // act
-        auto devHandle2 = IoTHubTransportMqtt_Register(handle, TEST_DEVICE_ID, TEST_DEVICE_KEY, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
+        auto devHandle2 = IoTHubTransportMqtt_Register(handle, &TEST_DEVICE_1, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
 
         // assert
         ASSERT_IS_NULL(devHandle2);
@@ -3252,6 +3256,7 @@ BEGIN_TEST_SUITE(iothubtransportmqtt)
         CIoTHubTransportMqttMocks mocks;
         IOTHUBTRANSPORT_CONFIG config = { 0 };
         SetupIothubTransportConfig(&config, TEST_DEVICE_ID, TEST_DEVICE_KEY, TEST_IOTHUB_NAME, TEST_IOTHUB_SUFFIX, TEST_PROTOCOL_GATEWAY_HOSTNAME);
+        IOTHUB_DEVICE_CONFIG deviceConfig = {TEST_DEVICE_ID, "not the right device key", NULL};
 
         auto handle = IoTHubTransportMqtt_Create(&config);
         mocks.ResetAllCalls();
@@ -3260,7 +3265,7 @@ BEGIN_TEST_SUITE(iothubtransportmqtt)
         EXPECTED_CALL(mocks, STRING_c_str(IGNORED_PTR_ARG));
 
         // act
-        auto devHandle = IoTHubTransportMqtt_Register(handle, TEST_DEVICE_ID, "not the right device key", TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
+        auto devHandle = IoTHubTransportMqtt_Register(handle, &deviceConfig, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
 
         // assert
         ASSERT_IS_NULL(devHandle);
@@ -3277,6 +3282,7 @@ BEGIN_TEST_SUITE(iothubtransportmqtt)
         CIoTHubTransportMqttMocks mocks;
         IOTHUBTRANSPORT_CONFIG config = { 0 };
         SetupIothubTransportConfig(&config, TEST_DEVICE_ID, TEST_DEVICE_KEY, TEST_IOTHUB_NAME, TEST_IOTHUB_SUFFIX, TEST_PROTOCOL_GATEWAY_HOSTNAME);
+        IOTHUB_DEVICE_CONFIG deviceConfig = { "not a good id after all", TEST_DEVICE_KEY, NULL };
 
         auto handle = IoTHubTransportMqtt_Create(&config);
         mocks.ResetAllCalls();
@@ -3284,7 +3290,7 @@ BEGIN_TEST_SUITE(iothubtransportmqtt)
         EXPECTED_CALL(mocks, STRING_c_str(IGNORED_PTR_ARG));
 
         // act
-        auto devHandle = IoTHubTransportMqtt_Register(handle, "not a good id after all", TEST_DEVICE_KEY, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
+        auto devHandle = IoTHubTransportMqtt_Register(handle, &deviceConfig, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
 
         // assert
         ASSERT_IS_NULL(devHandle);
@@ -3397,7 +3403,7 @@ BEGIN_TEST_SUITE(iothubtransportmqtt)
         mocks.ResetAllCalls();
 
         // act
-        auto devHandle = IoTHubTransportMqtt_Register(NULL, TEST_DEVICE_ID, TEST_DEVICE_KEY, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
+        auto devHandle = IoTHubTransportMqtt_Register(NULL, &TEST_DEVICE_1, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
 
         // assert
         ASSERT_IS_NULL(devHandle);
@@ -3416,7 +3422,7 @@ BEGIN_TEST_SUITE(iothubtransportmqtt)
         SetupIothubTransportConfig(&config, TEST_DEVICE_ID, TEST_DEVICE_KEY, TEST_IOTHUB_NAME, TEST_IOTHUB_SUFFIX, TEST_PROTOCOL_GATEWAY_HOSTNAME);
 
         auto handle = IoTHubTransportMqtt_Create(&config);
-        auto devHandle = IoTHubTransportMqtt_Register(handle, TEST_DEVICE_ID, TEST_DEVICE_KEY, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
+        auto devHandle = IoTHubTransportMqtt_Register(handle, &TEST_DEVICE_1, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
 
         mocks.ResetAllCalls();
 
@@ -3440,7 +3446,7 @@ BEGIN_TEST_SUITE(iothubtransportmqtt)
         SetupIothubTransportConfig(&config, TEST_DEVICE_ID, TEST_DEVICE_KEY, TEST_IOTHUB_NAME, TEST_IOTHUB_SUFFIX, TEST_PROTOCOL_GATEWAY_HOSTNAME);
 
         auto handle = IoTHubTransportMqtt_Create(&config);
-        auto devHandle = IoTHubTransportMqtt_Register(handle, TEST_DEVICE_ID, TEST_DEVICE_KEY, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
+        auto devHandle = IoTHubTransportMqtt_Register(handle, &TEST_DEVICE_1, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
         IoTHubTransportMqtt_Unregister(devHandle);
 
         mocks.ResetAllCalls();
@@ -3449,7 +3455,7 @@ BEGIN_TEST_SUITE(iothubtransportmqtt)
         EXPECTED_CALL(mocks, STRING_c_str(IGNORED_PTR_ARG));
 
         // act
-        auto devHandle2 = IoTHubTransportMqtt_Register(handle, TEST_DEVICE_ID, TEST_DEVICE_KEY, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
+        auto devHandle2 = IoTHubTransportMqtt_Register(handle, &TEST_DEVICE_1, TEST_IOTHUB_CLIENT_LL_HANDLE, config.waitingToSend);
 
         // assert
         ASSERT_IS_NOT_NULL(devHandle2);

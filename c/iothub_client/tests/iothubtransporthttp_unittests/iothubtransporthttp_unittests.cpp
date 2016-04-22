@@ -1117,6 +1117,14 @@ public:
         free(handle);
     MOCK_VOID_METHOD_END()
 
+    MOCK_STATIC_METHOD_8(, HTTPAPIEX_RESULT, HTTPAPIEX_ExecuteRequest2, HTTPAPIEX_HANDLE, handle, HTTPAPI_REQUEST_TYPE, requestType, const char*, relativePath, HTTP_HEADERS_HANDLE, requestHttpHeadersHandle, BUFFER_HANDLE, requestContent, unsigned int*, statusCode, HTTP_HEADERS_HANDLE, responseHttpHeadersHandle, BUFFER_HANDLE, responseContent)
+        if (last_BUFFER_HANDLE_to_HTTPAPIEX_ExecuteRequest != NULL)
+        {
+            BASEIMPLEMENTATION::BUFFER_delete(last_BUFFER_HANDLE_to_HTTPAPIEX_ExecuteRequest);
+        }
+        last_BUFFER_HANDLE_to_HTTPAPIEX_ExecuteRequest = BASEIMPLEMENTATION::BUFFER_clone(requestContent);
+    MOCK_METHOD_END(HTTPAPIEX_RESULT, HTTPAPIEX_OK)
+
     MOCK_STATIC_METHOD_9(, HTTPAPIEX_RESULT, HTTPAPIEX_SAS_ExecuteRequest2, HTTPAPIEX_SAS_HANDLE, sasHandle, HTTPAPIEX_HANDLE, handle, HTTPAPI_REQUEST_TYPE, requestType, const char*, relativePath, HTTP_HEADERS_HANDLE, requestHttpHeadersHandle, BUFFER_HANDLE, requestContent, unsigned int*, statusCode, HTTP_HEADERS_HANDLE, responseHttpHeadersHandle, BUFFER_HANDLE, responseContent)
         if (last_BUFFER_HANDLE_to_HTTPAPIEX_ExecuteRequest != NULL)
         {
@@ -1279,6 +1287,7 @@ DECLARE_GLOBAL_MOCK_METHOD_3(CIoTHubTransportHttpMocks, , HTTPAPIEX_SAS_HANDLE, 
 
 DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubTransportHttpMocks, , void, HTTPAPIEX_SAS_Destroy, HTTPAPIEX_SAS_HANDLE, handle);
 DECLARE_GLOBAL_MOCK_METHOD_9(CIoTHubTransportHttpMocks, , HTTPAPIEX_RESULT, HTTPAPIEX_SAS_ExecuteRequest2, HTTPAPIEX_SAS_HANDLE, sasHandle, HTTPAPIEX_HANDLE, handle, HTTPAPI_REQUEST_TYPE, requestType, const char*, relativePath, HTTP_HEADERS_HANDLE, requestHttpHeadersHandle, BUFFER_HANDLE, requestContent, unsigned int*, statusCode, HTTP_HEADERS_HANDLE, responseHttpHeadersHandle, BUFFER_HANDLE, responseContent);
+DECLARE_GLOBAL_MOCK_METHOD_8(CIoTHubTransportHttpMocks, , HTTPAPIEX_RESULT, HTTPAPIEX_ExecuteRequest2, HTTPAPIEX_HANDLE, handle, HTTPAPI_REQUEST_TYPE, requestType, const char*, relativePath, HTTP_HEADERS_HANDLE, requestHttpHeadersHandle, BUFFER_HANDLE, requestContent, unsigned int*, statusCode, HTTP_HEADERS_HANDLE, responseHttpHeadersHandle, BUFFER_HANDLE, responseContent);
 
 DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubTransportHttpMocks, , time_t, get_time, time_t*, currentTime);
 DECLARE_GLOBAL_MOCK_METHOD_2(CIoTHubTransportHttpMocks, , double, get_difftime, time_t, stopTime, time_t, startTime);
@@ -1298,6 +1307,12 @@ extern "C" HTTPAPIEX_RESULT HTTPAPIEX_SAS_ExecuteRequest(HTTPAPIEX_SAS_HANDLE sa
 {
     *statusCode = 204;
     return HTTPAPIEX_SAS_ExecuteRequest2(sasHandle, handle, requestType, relativePath, requestHttpHeadersHandle, requestContent, statusCode, responseHttpHeadersHandle, responseContent);
+}
+
+extern "C" HTTPAPIEX_RESULT HTTPAPIEX_ExecuteRequest(HTTPAPIEX_HANDLE handle, HTTPAPI_REQUEST_TYPE requestType, const char* relativePath, HTTP_HEADERS_HANDLE requestHttpHeadersHandle, BUFFER_HANDLE requestContent, unsigned int* statusCode, HTTP_HEADERS_HANDLE responseHttpHeadersHandle, BUFFER_HANDLE responseContent)
+{
+    *statusCode = 204;
+    return HTTPAPIEX_ExecuteRequest2(handle, requestType, relativePath, requestHttpHeadersHandle, requestContent, statusCode, responseHttpHeadersHandle, responseContent);
 }
 
 static void setupCreateHappyPathAlloc(CIoTHubTransportHttpMocks &mocks, bool deallocateCreated)
