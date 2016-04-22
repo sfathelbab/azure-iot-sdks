@@ -13,13 +13,27 @@ extern "C"
 {
 #endif
 
+/** @brief	This struct captures device configuration. */
+typedef struct IOTHUB_DEVICE_CONFIG_TAG
+{
+    /** @brief	A string that identifies the device. */
+    const char* deviceId;
+
+    /** @brief	The device key used to authenticate the device. */
+    const char* deviceKey;
+
+    /** @brief	The device SAS used to authenticate the device in place of using the device key. */
+    const char* deviceSasToken;
+
+} IOTHUB_DEVICE_CONFIG;
+
 typedef void* TRANSPORT_LL_HANDLE;
 typedef void* IOTHUB_DEVICE_HANDLE;
 
 typedef IOTHUB_CLIENT_RESULT(*pfIoTHubTransport_SetOption)(TRANSPORT_LL_HANDLE handle, const char *optionName, const void* value);
 typedef TRANSPORT_LL_HANDLE(*pfIoTHubTransport_Create)(const IOTHUBTRANSPORT_CONFIG* config);
 typedef void (*pfIoTHubTransport_Destroy)(TRANSPORT_LL_HANDLE handle);
-typedef IOTHUB_DEVICE_HANDLE(*pfIotHubTransport_Register)(TRANSPORT_LL_HANDLE handle, const char* deviceId, const char* deviceKey, IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, PDLIST_ENTRY waitingToSend);
+typedef IOTHUB_DEVICE_HANDLE(*pfIotHubTransport_Register)(TRANSPORT_LL_HANDLE handle, const IOTHUB_DEVICE_CONFIG* device, IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, PDLIST_ENTRY waitingToSend);
 typedef void(*pfIotHubTransport_Unregister)(IOTHUB_DEVICE_HANDLE deviceHandle);
 typedef int (*pfIoTHubTransport_Subscribe)(IOTHUB_DEVICE_HANDLE handle);
 typedef void (*pfIoTHubTransport_Unsubscribe)(IOTHUB_DEVICE_HANDLE handle);

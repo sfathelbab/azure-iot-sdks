@@ -15,7 +15,7 @@ extern "C"
     extern TRANSPORT_LL_HANDLE IoTHubTransportHttp_Create(const IOTHUBTRANSPORT_CONFIG* config);
     extern void IoTHubTransportHttp_Destroy(TRANSPORT_LL_HANDLE handle);
 
-	extern IOTHUB_DEVICE_HANDLE IoTHubTransportHttp_Register(TRANSPORT_LL_HANDLE handle, const char* deviceId, const char* deviceKey, IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, PDLIST_ENTRY waitingToSend);
+	extern IOTHUB_DEVICE_HANDLE IoTHubTransportHttp_Register(TRANSPORT_LL_HANDLE handle, const IOTHUB_DEVICE_CONFIG* device, IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, PDLIST_ENTRY waitingToSend);
 	extern void IoTHubTransportHttp_Unregister(IOTHUB_DEVICE_HANDLE deviceHandle);
 
     extern int IoTHubTransportHttp_Subscribe(IOTHUB_DEVICE_HANDLE handle);

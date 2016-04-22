@@ -29,7 +29,7 @@ static void IoTHubTransportAMQP_Destroy(TRANSPORT_LL_HANDLE handle)
 
 static void IoTHubTransportAMQP_DoWork(TRANSPORT_LL_HANDLE handle, IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle)
 
-static IOTHUB_DEVICE_HANDLE IoTHubTransportAMQP_Register(TRANSPORT_LL_HANDLE handle, const char* deviceId, const char* deviceKey, PDLIST_ENTRY waitingToSend)
+static IOTHUB_DEVICE_HANDLE IoTHubTransportAMQP_Register(TRANSPORT_LL_HANDLE handle, const IOTHUB_DEVICE_CONFIG* device, IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, PDLIST_ENTRY waitingToSend)
 
 static void IoTHubTransportAMQP_Unregister(IOTHUB_DEVICE_HANDLE deviceHandle)
 
@@ -335,8 +335,9 @@ This section defines the functionality of the callback function ‘on_message_re
 
 This function registers a device with the transport.  The AMQP transport only supports a single device established on create, so this function will prevent multiple devices from being registered.
 SRS_IOTHUBTRANSPORTUAMQP_17_005: [**IoTHubTransportAMQP_Register shall return NULL if the TRANSPORT_LL_HANDLE is NULL.**]**
-SRS_IOTHUBTRANSPORTUAMQP_17_001: [**IoTHubTransportAMQP_Register shall return NULL if deviceId, deviceKey or waitingToSend are NULL.**]**
-SRS_IOTHUBTRANSPORTUAMQP_17_002: [**IoTHubTransportAMQP_Register shall return NULL if deviceId or deviceKey do not match the deviceId and deviceKey passed in during IoTHubTransportAMQP_Create.**]**
+SRS_IOTHUBTRANSPORTUAMQP_17_001: [**IoTHubTransportAMQP_Register shall return NULL if device, or waitingToSend are NULL.**]**
+SRS_IOTHUBTRANSPORTUAMQP_03_001: [**IoTHubTransportAMQP_Register shall return NULL if deviceId, or both deviceKey and deviceSasToken are NULL.**]**
+SRS_IOTHUBTRANSPORTUAMQP_17_002: [**IoTHubTransportAMQP_Register shall return NULL if deviceId or deviceKey or deviceSasToken do not match the deviceId, deviceKey or deviceSasToken passed in during IoTHubTransportAMQP_Create.**]**
 SRS_IOTHUBTRANSPORTUAMQP_17_003: [**IoTHubTransportAMQP_Register shall return the TRANSPORT_LL_HANDLE as the IOTHUB_DEVICE_HANDLE.**]**
   
   

@@ -219,11 +219,11 @@ public:
     MOCK_STATIC_METHOD_1(, void, FAKE_IoTHubTransport_Destroy, TRANSPORT_LL_HANDLE, handle)
     MOCK_VOID_METHOD_END()
 
-		MOCK_STATIC_METHOD_5(, IOTHUB_DEVICE_HANDLE, FAKE_IoTHubTransport_Register, TRANSPORT_LL_HANDLE, handle, const char*, deviceId, const char*, deviceKey, IOTHUB_CLIENT_LL_HANDLE, iotHubClientHandle, PDLIST_ENTRY, waitingToSend)
-		MOCK_METHOD_END(IOTHUB_DEVICE_HANDLE, (IOTHUB_DEVICE_HANDLE)handle)
+	MOCK_STATIC_METHOD_4(, IOTHUB_DEVICE_HANDLE, FAKE_IoTHubTransport_Register, TRANSPORT_LL_HANDLE, handle, const IOTHUB_DEVICE_CONFIG*, device, IOTHUB_CLIENT_LL_HANDLE, iotHubClientHandle, PDLIST_ENTRY, waitingToSend)
+	MOCK_METHOD_END(IOTHUB_DEVICE_HANDLE, (IOTHUB_DEVICE_HANDLE)handle)
 
-		MOCK_STATIC_METHOD_1(, void, FAKE_IoTHubTransport_Unregister, IOTHUB_DEVICE_HANDLE, handle)
-		MOCK_VOID_METHOD_END()
+	MOCK_STATIC_METHOD_1(, void, FAKE_IoTHubTransport_Unregister, IOTHUB_DEVICE_HANDLE, handle)
+	MOCK_VOID_METHOD_END()
 
     MOCK_STATIC_METHOD_1(, int, FAKE_IoTHubTransport_Subscribe, TRANSPORT_LL_HANDLE, handle)
     MOCK_METHOD_END(int, 0)
@@ -366,7 +366,7 @@ DECLARE_GLOBAL_MOCK_METHOD_1(CIotHubTransportMocks, , void, gballoc_free, void*,
 DECLARE_GLOBAL_MOCK_METHOD_3(CIotHubTransportMocks, , IOTHUB_CLIENT_RESULT, FAKE_IoTHubTransport_SetOption, TRANSPORT_LL_HANDLE, handle, const char*, optionName, const void*, value);
 DECLARE_GLOBAL_MOCK_METHOD_1(CIotHubTransportMocks, , TRANSPORT_LL_HANDLE, FAKE_IoTHubTransport_Create,const IOTHUBTRANSPORT_CONFIG*, config);
 DECLARE_GLOBAL_MOCK_METHOD_1(CIotHubTransportMocks, , void, FAKE_IoTHubTransport_Destroy, TRANSPORT_LL_HANDLE, handle);
-DECLARE_GLOBAL_MOCK_METHOD_5(CIotHubTransportMocks, , IOTHUB_DEVICE_HANDLE, FAKE_IoTHubTransport_Register, TRANSPORT_LL_HANDLE, handle, const char*, deviceId, const char*, deviceKey, IOTHUB_CLIENT_LL_HANDLE, iotHubClientHandle, PDLIST_ENTRY, waitingToSend);
+DECLARE_GLOBAL_MOCK_METHOD_4(CIotHubTransportMocks, , IOTHUB_DEVICE_HANDLE, FAKE_IoTHubTransport_Register, TRANSPORT_LL_HANDLE, handle, const IOTHUB_DEVICE_CONFIG*, device, IOTHUB_CLIENT_LL_HANDLE, iotHubClientHandle, PDLIST_ENTRY, waitingToSend);
 DECLARE_GLOBAL_MOCK_METHOD_1(CIotHubTransportMocks, , void, FAKE_IoTHubTransport_Unregister, IOTHUB_DEVICE_HANDLE, handle);
 DECLARE_GLOBAL_MOCK_METHOD_1(CIotHubTransportMocks, , int, FAKE_IoTHubTransport_Subscribe, TRANSPORT_LL_HANDLE, handle);
 DECLARE_GLOBAL_MOCK_METHOD_1(CIotHubTransportMocks, , void, FAKE_IoTHubTransport_Unsubscribe, TRANSPORT_LL_HANDLE, handle);

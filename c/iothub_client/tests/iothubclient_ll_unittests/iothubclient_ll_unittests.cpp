@@ -225,11 +225,11 @@ public:
     MOCK_STATIC_METHOD_1(, void, FAKE_IoTHubTransport_Destroy, TRANSPORT_LL_HANDLE, handle)
     MOCK_VOID_METHOD_END()
 
-		MOCK_STATIC_METHOD_5(, IOTHUB_DEVICE_HANDLE, FAKE_IoTHubTransport_Register, TRANSPORT_LL_HANDLE, handle, const char*, deviceId, const char*, deviceKey, IOTHUB_CLIENT_LL_HANDLE, iotHubClientHandle, PDLIST_ENTRY, waitingToSend)
-		MOCK_METHOD_END(IOTHUB_DEVICE_HANDLE, (IOTHUB_DEVICE_HANDLE)handle)
+	MOCK_STATIC_METHOD_4(, IOTHUB_DEVICE_HANDLE, FAKE_IoTHubTransport_Register, TRANSPORT_LL_HANDLE, handle, const IOTHUB_DEVICE_CONFIG*, device, IOTHUB_CLIENT_LL_HANDLE, iotHubClientHandle, PDLIST_ENTRY, waitingToSend)
+	MOCK_METHOD_END(IOTHUB_DEVICE_HANDLE, (IOTHUB_DEVICE_HANDLE)handle)
 
-		MOCK_STATIC_METHOD_1(, void, FAKE_IoTHubTransport_Unregister, IOTHUB_DEVICE_HANDLE, handle)
-		MOCK_VOID_METHOD_END()
+	MOCK_STATIC_METHOD_1(, void, FAKE_IoTHubTransport_Unregister, IOTHUB_DEVICE_HANDLE, handle)
+	MOCK_VOID_METHOD_END()
 
     MOCK_STATIC_METHOD_1(, int, FAKE_IoTHubTransport_Subscribe, TRANSPORT_LL_HANDLE, handle)
     MOCK_METHOD_END(int, 0)
@@ -319,7 +319,7 @@ DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubClientLLMocks, , void, gballoc_free, void*, 
 DECLARE_GLOBAL_MOCK_METHOD_3(CIoTHubClientLLMocks, , IOTHUB_CLIENT_RESULT, FAKE_IoTHubTransport_SetOption, TRANSPORT_LL_HANDLE, handle, const char*, optionName, const void*, value);
 DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubClientLLMocks, , TRANSPORT_LL_HANDLE, FAKE_IoTHubTransport_Create,const IOTHUBTRANSPORT_CONFIG*, config);
 DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubClientLLMocks, , void, FAKE_IoTHubTransport_Destroy, TRANSPORT_LL_HANDLE, handle);
-DECLARE_GLOBAL_MOCK_METHOD_5(CIoTHubClientLLMocks, , IOTHUB_DEVICE_HANDLE, FAKE_IoTHubTransport_Register, TRANSPORT_LL_HANDLE, handle, const char*, deviceId, const char*, deviceKey, IOTHUB_CLIENT_LL_HANDLE, iotHubClientHandle, PDLIST_ENTRY, waitingToSend);
+DECLARE_GLOBAL_MOCK_METHOD_4(CIoTHubClientLLMocks, , IOTHUB_DEVICE_HANDLE, FAKE_IoTHubTransport_Register, TRANSPORT_LL_HANDLE, handle, const IOTHUB_DEVICE_CONFIG*, device, IOTHUB_CLIENT_LL_HANDLE, iotHubClientHandle, PDLIST_ENTRY, waitingToSend);
 DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubClientLLMocks, , void, FAKE_IoTHubTransport_Unregister, IOTHUB_DEVICE_HANDLE, handle);
 DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubClientLLMocks, , int, FAKE_IoTHubTransport_Subscribe, TRANSPORT_LL_HANDLE, handle);
 DECLARE_GLOBAL_MOCK_METHOD_1(CIoTHubClientLLMocks, , void, FAKE_IoTHubTransport_Unsubscribe, TRANSPORT_LL_HANDLE, handle);
@@ -507,7 +507,7 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
             .IgnoreArgument(1)
             .SetReturn((TRANSPORT_LL_HANDLE)0x42);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
 			.IgnoreAllArguments();
 
         ///act
@@ -608,7 +608,7 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
             .IgnoreArgument(1)
             .SetReturn((TRANSPORT_LL_HANDLE)0x42);
 
-        STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+        STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
             .IgnoreAllArguments();
 
         ///act
@@ -721,7 +721,7 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
 		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Create(IGNORED_PTR_ARG))
 			.IgnoreArgument(1);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
 			.IgnoreAllArguments();
 
 		///act
@@ -821,7 +821,7 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
 		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Create(IGNORED_PTR_ARG))
 			.IgnoreArgument(1);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
 			.IgnoreAllArguments();
 
 		///act
@@ -1918,6 +1918,11 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
 	{
 		///arrange
 		CIoTHubClientLLMocks mocks;
+        IOTHUB_DEVICE_CONFIG device;
+        device.deviceId = TEST_CONFIG.deviceId;
+        device.deviceKey = TEST_CONFIG.deviceKey;
+        device.deviceSasToken = NULL;
+
 		STRICT_EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
 			.IgnoreArgument(1);
 		STRICT_EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG))
@@ -1935,10 +1940,10 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
 		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Destroy(IGNORED_PTR_ARG))
 			.IgnoreArgument(1);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, TEST_CONFIG.deviceId, TEST_CONFIG.deviceKey, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, &device, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
 			.IgnoreArgument(1)
+			.IgnoreArgument(3)
 			.IgnoreArgument(4)
-			.IgnoreArgument(5)
 			.SetFailReturn((IOTHUB_DEVICE_HANDLE)NULL);
 
 		///act
@@ -1957,6 +1962,11 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
     {
         ///arrange
         CIoTHubClientLLMocks mocks;
+        IOTHUB_DEVICE_CONFIG device;
+        device.deviceId = TEST_CONFIG.deviceId;
+        device.deviceKey = TEST_CONFIG.deviceKey;
+        device.deviceSasToken = NULL;
+
         STRICT_EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
             .IgnoreArgument(1);
 
@@ -1969,9 +1979,9 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
             .IgnoreArgument(1)
             .SetReturn((TRANSPORT_LL_HANDLE)0x42);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register((TRANSPORT_LL_HANDLE)0x42, TEST_CONFIG.deviceId, TEST_CONFIG.deviceKey, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
-			.IgnoreArgument(4)
-			.IgnoreArgument(5);
+		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register((TRANSPORT_LL_HANDLE)0x42, &device, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+			.IgnoreArgument(3)
+			.IgnoreArgument(4);
 
         ///act
         auto result = IoTHubClient_LL_Create(&TEST_CONFIG);
@@ -2024,6 +2034,10 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
 	{
 		///arrange
 		CIoTHubClientLLMocks mocks;
+        IOTHUB_DEVICE_CONFIG device;
+        device.deviceId = TEST_DEVICE_CONFIG.deviceId;
+        device.deviceKey = TEST_DEVICE_CONFIG.deviceKey;
+        device.deviceSasToken = NULL;
 
 		STRICT_EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
 			.IgnoreArgument(1);
@@ -2033,9 +2047,9 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
 		STRICT_EXPECTED_CALL(mocks, DList_InitializeListHead(IGNORED_PTR_ARG))
 			.IgnoreArgument(1);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(TEST_DEVICE_CONFIG.transportHandle, TEST_DEVICE_CONFIG.deviceId, TEST_DEVICE_CONFIG.deviceKey, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
-			.IgnoreArgument(4)
-			.IgnoreArgument(5);
+		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(TEST_DEVICE_CONFIG.transportHandle, &device, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+			.IgnoreArgument(3)
+			.IgnoreArgument(4);
 
 		///act
 		auto result = IoTHubClient_LL_CreateWithTransport(&TEST_DEVICE_CONFIG);
@@ -2053,6 +2067,10 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
 	{
 		///arrange
 		CIoTHubClientLLMocks mocks;
+        IOTHUB_DEVICE_CONFIG device;
+        device.deviceId = TEST_DEVICE_CONFIG.deviceId;
+        device.deviceKey = TEST_DEVICE_CONFIG.deviceKey;
+        device.deviceSasToken = NULL;
 
 		STRICT_EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
 			.IgnoreArgument(1);
@@ -2066,9 +2084,9 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
 		STRICT_EXPECTED_CALL(mocks, DList_InitializeListHead(IGNORED_PTR_ARG))
 			.IgnoreArgument(1);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(TEST_DEVICE_CONFIG.transportHandle, TEST_DEVICE_CONFIG.deviceId, TEST_DEVICE_CONFIG.deviceKey, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(TEST_DEVICE_CONFIG.transportHandle, &device, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+			.IgnoreArgument(3)
 			.IgnoreArgument(4)
-			.IgnoreArgument(5)
 			.SetFailReturn((IOTHUB_DEVICE_HANDLE)NULL);
 
 		///act

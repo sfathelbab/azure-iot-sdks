@@ -1464,25 +1464,27 @@ static IOTHUB_CLIENT_RESULT IoTHubTransportAMQP_SetOption(TRANSPORT_LL_HANDLE ha
     return result;
 }
 
-static IOTHUB_DEVICE_HANDLE IoTHubTransportAMQP_Register(TRANSPORT_LL_HANDLE handle, const char* deviceId, const char* deviceKey, IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, PDLIST_ENTRY waitingToSend)
+static IOTHUB_DEVICE_HANDLE IoTHubTransportAMQP_Register(TRANSPORT_LL_HANDLE handle, const IOTHUB_DEVICE_CONFIG* device, IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, PDLIST_ENTRY waitingToSend)
 {
     IOTHUB_DEVICE_HANDLE result;
-    // Codes_SRS_IOTHUBTRANSPORTUAMQP_17_001: [IoTHubTransportAMQP_Register shall return NULL if deviceId, deviceKey or waitingToSend are NULL.] 
+    // Codes_SRS_IOTHUBTRANSPORTUAMQP_17_001: [IoTHubTransportAMQP_Register shall return NULL if device, or waitingToSend are NULL.] 
     // Codes_SRS_IOTHUBTRANSPORTUAMQP_17_005: [IoTHubTransportAMQP_Register shall return NULL if the TRANSPORT_LL_HANDLE is NULL.]
-    if ((handle == NULL) || (deviceId == NULL) /*|| (deviceKey == NULL)*/ || (waitingToSend == NULL))
+    if ((handle == NULL) || (device == NULL) || (waitingToSend == NULL))
     {
         result = NULL;
     }
     else
     {
         AMQP_TRANSPORT_INSTANCE* transport_state = (AMQP_TRANSPORT_INSTANCE*)handle;
-        if (transport_state->deviceSasToken == NULL && deviceKey == NULL)
+
+        // Codes_SRS_IOTHUBTRANSPORTUAMQP_03_001: [IoTHubTransportAMQP_Register shall return NULL if deviceId, or both deviceKey and deviceSasToken are NULL.**]*/
+        if ( (device->deviceId == NULL) || (device->deviceSasToken == NULL && device->deviceKey == NULL))
         {
             result = NULL;
         }
         else
         {
-            STRING_HANDLE devicesPath = concat3Params(STRING_c_str(transport_state->iotHubHostFqdn), "/devices/", deviceId);
+            STRING_HANDLE devicesPath = concat3Params(STRING_c_str(transport_state->iotHubHostFqdn), "/devices/", device->deviceId);
             if (devicesPath == NULL)
             {
                 LogError("Could not create a comparison string");
@@ -1496,7 +1498,7 @@ static IOTHUB_DEVICE_HANDLE IoTHubTransportAMQP_Register(TRANSPORT_LL_HANDLE han
                     LogError("Attemping to add new device to AMQP transport, not allowed.");
                     result = NULL;
                 }
-                else if ( (transport_state->deviceSasToken == NULL) && strcmp(STRING_c_str(transport_state->deviceKey), deviceKey) != 0)
+                else if ( (transport_state->deviceSasToken == NULL) && strcmp(STRING_c_str(transport_state->deviceKey), device->deviceKey) != 0)
                 {
                     LogError("Attemping to add new device to AMQP transport, not allowed.");
                     result = NULL;
@@ -1505,7 +1507,7 @@ static IOTHUB_DEVICE_HANDLE IoTHubTransportAMQP_Register(TRANSPORT_LL_HANDLE han
                 {
                     if (transport_state->isRegistered == true)
                     {
-                        LogError("Transport already has device registered by id: [%s]", deviceId);
+                        LogError("Transport already has device registered by id: [%s]", device->deviceId);
                         result = NULL;
                     }
                     else

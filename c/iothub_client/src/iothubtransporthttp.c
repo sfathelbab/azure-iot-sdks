@@ -79,6 +79,7 @@ typedef struct HTTPTRANSPORT_PERDEVICE_DATA_TAG
 
 	STRING_HANDLE deviceId;
 	STRING_HANDLE deviceKey;
+    STRING_HANDLE deviceSasToken;
     STRING_HANDLE eventHTTPrelativePath;
     STRING_HANDLE messageHTTPrelativePath;
     HTTP_HEADERS_HANDLE eventHTTPrequestHeaders;
@@ -439,6 +440,30 @@ static bool create_deviceKey(HTTPTRANSPORT_PERDEVICE_DATA* handleData, const cha
 	return result;
 }
 
+static void destroy_deviceSasToken(HTTPTRANSPORT_PERDEVICE_DATA* handleData)
+{
+    STRING_delete(handleData->deviceSasToken);
+    handleData->deviceSasToken = NULL;
+}
+
+static bool create_deviceSasToken(HTTPTRANSPORT_PERDEVICE_DATA* handleData, const char * deviceSasToken)
+{
+    /*Codes_SRS_TRANSPORTMULTITHTTP_03_135: [ IoTHubTransportHttp_Register shall create an immutable string (further called "deviceSasToken") from deviceSasToken. ]*/
+    bool result;
+    handleData->deviceSasToken = STRING_construct(deviceSasToken);
+    if (handleData->deviceSasToken == NULL)
+    {
+        /*Codes_SRS_TRANSPORTMULTITHTTP_03_136: [ If deviceSasToken is not created, then IoTHubTransportHttp_Register shall fail and return NULL. ]*/
+        LogError("STRING_construct deviceKey failed");
+        result = false;
+    }
+    else
+    {
+        result = true;
+    }
+    return result;
+}
+
 /*
 * List queries  Find by handle and find by device name
 */
@@ -465,19 +490,19 @@ static bool findDeviceById(const void* element, const void* value)
     return result;
 }
 
-IOTHUB_DEVICE_HANDLE IoTHubTransportHttp_Register(TRANSPORT_LL_HANDLE handle, const char* deviceId, const char* deviceKey, IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, PDLIST_ENTRY waitingToSend)
+IOTHUB_DEVICE_HANDLE IoTHubTransportHttp_Register(TRANSPORT_LL_HANDLE handle, const IOTHUB_DEVICE_CONFIG* device, IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, PDLIST_ENTRY waitingToSend)
 {
 	HTTPTRANSPORT_PERDEVICE_DATA* result;
-	if (handle == NULL)
+	if (handle == NULL || device == NULL)
 	{
-		/*Codes_SRS_TRANSPORTMULTITHTTP_17_142: [ If handle is NULL, then IoTHubTransportHttp_Register shall return NULL. ]*/
+		/*Codes_SRS_TRANSPORTMULTITHTTP_17_142: [ If handle is NULL or device is NULL, then IoTHubTransportHttp_Register shall return NULL. ]*/
 		LogError("Transport handle is NULL");
 		result = NULL;
 	}
-	else if (deviceId == NULL || deviceKey == NULL || waitingToSend == NULL || iotHubClientHandle == NULL)
+	else if (device->deviceId == NULL || ((device->deviceKey == NULL) && (device->deviceSasToken == NULL)) || waitingToSend == NULL || iotHubClientHandle == NULL)
 	{
-		/*Codes_SRS_TRANSPORTMULTITHTTP_17_015: [ If parameter deviceKey is NULL, then IoTHubTransportHttp_Register shall return NULL. ]*/
-		/*Codes_SRS_TRANSPORTMULTITHTTP_17_014: [ If parameter deviceId is NULL, then IoTHubTransportHttp_Register shall return NULL. ]*/
+		/*Codes_SRS_TRANSPORTMULTITHTTP_17_015: [ If IOTHUB_DEVICE_CONFIG fields deviceKey and deviceSasToken are NULL, then IoTHubTransportHttp_Register shall return NULL. ]*/
+		/*Codes_SRS_TRANSPORTMULTITHTTP_17_014: [ If IOTHUB_DEVICE_CONFIG field deviceId is NULL, then IoTHubTransportHttp_Register shall return NULL. ]*/
 		/*Codes_SRS_TRANSPORTMULTITHTTP_17_016: [ If parameter waitingToSend is NULL, then IoTHubTransportHttp_Register shall return NULL. ]*/
 		/*Codes_SRS_TRANSPORTMULTITHTTP_17_143: [ If parameter iotHubClientHandle is NULL, then IoTHubTransportHttp_Register shall return NULL. ]*/
 		LogError("All parameters must be non-NULL");
@@ -487,27 +512,47 @@ IOTHUB_DEVICE_HANDLE IoTHubTransportHttp_Register(TRANSPORT_LL_HANDLE handle, co
 	{
 		HTTPTRANSPORT_HANDLE_DATA* handleData = (HTTPTRANSPORT_HANDLE_DATA*)handle;
 		/*Codes_SRS_TRANSPORTMULTITHTTP_17_137: [ IoTHubTransportHttp_Register shall search the devices list for any device matching name deviceId. If deviceId is found it shall return NULL. ]*/
-		void* listItem = VECTOR_find_if(handleData->perDeviceList, findDeviceById, deviceId);
+		void* listItem = VECTOR_find_if(handleData->perDeviceList, findDeviceById, device->deviceId);
 		if (listItem != NULL)
 		{
 			/*Codes_SRS_TRANSPORTMULTITHTTP_17_137: [ IoTHubTransportHttp_Register shall search the devices list for any device matching name deviceId. If deviceId is found it shall return NULL. ]*/
-			LogError("Transport already has device registered by id: [%s]", deviceId);
+			LogError("Transport already has device registered by id: [%s]", device->deviceId);
 			result = NULL;
 		}
 		else
 		{
-			/*Codes_SRS_TRANSPORTMULTITHTTP_17_038: [ Otherwise, IoTHubTransportHttp_Register shall allocate the IOTHUB_DEVICE_HANDLE structure. ]*/
+            bool was_create_deviceKey_ok = false;
+            bool was_create_deviceSasToken_ok = false;
+            bool was_sasObject_ok = false;
+
+            /*Codes_SRS_TRANSPORTMULTITHTTP_17_038: [ Otherwise, IoTHubTransportHttp_Register shall allocate the IOTHUB_DEVICE_HANDLE structure. ]*/
 			bool was_resultCreated_ok = ((result = malloc(sizeof(HTTPTRANSPORT_PERDEVICE_DATA))) != NULL);
-			bool was_create_deviceId_ok = was_resultCreated_ok && create_deviceId(result, deviceId);
-			bool was_create_deviceKey_ok = was_create_deviceId_ok && create_deviceKey(result, deviceKey);
-			bool was_eventHTTPrelativePath_ok = was_create_deviceKey_ok && create_eventHTTPrelativePath(result, deviceId);
-			bool was_messageHTTPrelativePath_ok = was_eventHTTPrelativePath_ok && create_messageHTTPrelativePath(result, deviceId);
-			bool was_eventHTTPrequestHeaders_ok = was_messageHTTPrelativePath_ok && create_eventHTTPrequestHeaders(result, deviceId);
+			bool was_create_deviceId_ok = was_resultCreated_ok && create_deviceId(result, device->deviceId);
+
+            if (device->deviceSasToken != NULL)
+            {
+                was_create_deviceSasToken_ok = was_create_deviceId_ok && create_deviceSasToken(result, device->deviceSasToken);
+                result->deviceKey = NULL;
+            }
+            else if (device->deviceKey != NULL)
+            {
+                was_create_deviceKey_ok = was_create_deviceId_ok && create_deviceKey(result, device->deviceKey);
+                result->deviceSasToken = NULL;
+            }
+
+            bool was_eventHTTPrelativePath_ok = (was_create_deviceKey_ok || was_create_deviceSasToken_ok) && create_eventHTTPrelativePath(result, device->deviceId);
+			bool was_messageHTTPrelativePath_ok = was_eventHTTPrelativePath_ok && create_messageHTTPrelativePath(result, device->deviceId);
+			bool was_eventHTTPrequestHeaders_ok = was_messageHTTPrelativePath_ok && create_eventHTTPrequestHeaders(result, device->deviceId);
 			bool was_messageHTTPrequestHeaders_ok = was_eventHTTPrequestHeaders_ok && create_messageHTTPrequestHeaders(result);
-			bool was_abandonHTTPrelativePathBegin_ok = was_messageHTTPrequestHeaders_ok && create_abandonHTTPrelativePathBegin(result, deviceId);
-			bool was_sasObject_ok = was_abandonHTTPrelativePathBegin_ok && create_deviceSASObject(result, handleData->hostName, deviceId, deviceKey);
+			bool was_abandonHTTPrelativePathBegin_ok = was_messageHTTPrequestHeaders_ok && create_abandonHTTPrelativePathBegin(result, device->deviceId);
+
+            if (!was_create_deviceSasToken_ok)
+            {
+                was_sasObject_ok = was_abandonHTTPrelativePathBegin_ok && create_deviceSASObject(result, handleData->hostName, device->deviceId, device->deviceKey);
+            }
+
 			/*Codes_SRS_TRANSPORTMULTITHTTP_17_041: [ IoTHubTransportHttp_Register shall call VECTOR_push_back to store the new device information. ]*/
-			bool was_list_add_ok = was_sasObject_ok && (VECTOR_push_back(handleData->perDeviceList, &result, 1) == 0);
+			bool was_list_add_ok = (was_sasObject_ok || was_create_deviceSasToken_ok) && (VECTOR_push_back(handleData->perDeviceList, &result, 1) == 0);
 
 			if (was_list_add_ok)
 			{
@@ -532,7 +577,8 @@ IOTHUB_DEVICE_HANDLE IoTHubTransportHttp_Register(TRANSPORT_LL_HANDLE handle, co
 				if (was_eventHTTPrelativePath_ok) destroy_eventHTTPrelativePath(result);
 				if (was_create_deviceId_ok) destroy_deviceId(result);
 				if (was_create_deviceKey_ok) destroy_deviceKey(result);
-				/*Codes_SRS_TRANSPORTMULTITHTTP_17_039: [ If the allocating the device handle fails then IoTHubTransportHttp_Register shall fail and return NULL. ] */
+                if (was_create_deviceSasToken_ok) destroy_deviceSasToken(result);
+                /*Codes_SRS_TRANSPORTMULTITHTTP_17_039: [ If the allocating the device handle fails then IoTHubTransportHttp_Register shall fail and return NULL. ] */
 				if (was_resultCreated_ok) free(result);
 				result = NULL;
 			}
@@ -1455,7 +1501,6 @@ static void DoEvent(HTTPTRANSPORT_HANDLE_DATA* handleData, HTTPTRANSPORT_PERDEVI
                                 }
                                 else
                                 {
-                                    /*Codes_SRS_TRANSPORTMULTITHTTP_17_080: [IoTHubTransportHttp_DoWork shall call HTTPAPIEX_SAS_ExecuteRequest passing the following parameters] */
                                     BUFFER_HANDLE toBeSend = BUFFER_new();
                                     if (toBeSend == NULL)
                                     {
@@ -1471,21 +1516,50 @@ static void DoEvent(HTTPTRANSPORT_HANDLE_DATA* handleData, HTTPTRANSPORT_PERDEVI
                                         {
                                             unsigned int statusCode;
                                             HTTPAPIEX_RESULT r;
-                                            if ((r = HTTPAPIEX_SAS_ExecuteRequest(
-												deviceData->sasObject,
-                                                handleData->httpApiExHandle,
-                                                HTTPAPI_REQUEST_POST,
-                                                STRING_c_str(deviceData->eventHTTPrelativePath),
-                                                clonedEventHTTPrequestHeaders,
-                                                toBeSend,
-                                                &statusCode,
-                                                NULL,
-                                                NULL
-                                                )) != HTTPAPIEX_OK)
+                                            if (deviceData->deviceSasToken != NULL)
                                             {
-                                                LogError("unable to HTTPAPIEX_ExecuteRequest\r\n");
+                                                /*Codes_SRS_TRANSPORTMULTITHTTP_03_001: [if a deviceSasToken exists, HTTPHeaders_ReplaceHeaderNameValuePair shall be invoked with "Authorization" as its second argument and STRING_c_str (deviceSasToken) as its third argument.]*/
+                                                if (HTTPHeaders_ReplaceHeaderNameValuePair(clonedEventHTTPrequestHeaders, "Authorization", STRING_c_str(deviceData->deviceSasToken)) != HTTP_HEADERS_OK)
+                                                {
+                                                    r = HTTPAPIEX_ERROR;
+                                                    /*Codes_SRS_TRANSPORTMULTITHTTP_03_002: [If the result of the invocation of HTTPHeaders_ReplaceHeaderNameValuePair is NOT HTTP_HEADERS_OK then fallthrough.]*/
+                                                    LogError("Unable to replace the old SAS Token.\r\n");
+                                                }
+
+                                                /*Codes_SRS_TRANSPORTMULTITHTTP_03_003: [If a deviceSasToken exists, IoTHubTransportHttp_DoWork shall call HTTPAPIEX_ExecuteRequest passing the following parameters] */
+                                                else if ((r = HTTPAPIEX_ExecuteRequest(
+                                                    handleData->httpApiExHandle,
+                                                    HTTPAPI_REQUEST_POST,
+                                                    STRING_c_str(deviceData->eventHTTPrelativePath),
+                                                    clonedEventHTTPrequestHeaders,
+                                                    toBeSend,
+                                                    &statusCode,
+                                                    NULL,
+                                                    NULL
+                                                    )) != HTTPAPIEX_OK)
+                                                {
+                                                    LogError("unable to HTTPAPIEX_ExecuteRequest\r\n");
+                                                }
                                             }
                                             else
+                                            {
+                                                /*Codes_SRS_TRANSPORTMULTITHTTP_17_080: [If a deviceSasToken does not exist, IoTHubTransportHttp_DoWork shall call HTTPAPIEX_SAS_ExecuteRequest passing the following parameters] */
+                                                if ((r = HTTPAPIEX_SAS_ExecuteRequest(
+                                                    deviceData->sasObject,
+                                                    handleData->httpApiExHandle,
+                                                    HTTPAPI_REQUEST_POST,
+                                                    STRING_c_str(deviceData->eventHTTPrelativePath),
+                                                    clonedEventHTTPrequestHeaders,
+                                                    toBeSend,
+                                                    &statusCode,
+                                                    NULL,
+                                                    NULL
+                                                    )) != HTTPAPIEX_OK)
+                                                {
+                                                    LogError("unable to HTTPAPIEX_SAS_ExecuteRequest\r\n");
+                                                }
+                                            }
+                                            if(r == HTTPAPIEX_OK)
                                             {
                                                 if (statusCode < 300)
                                                 {
@@ -1609,7 +1683,34 @@ static void abandonOrAcceptMessage(HTTPTRANSPORT_HANDLE_DATA* handleData, HTTPTR
                     else
                     {
                         unsigned int statusCode;
-                        if (HTTPAPIEX_SAS_ExecuteRequest(
+                        HTTPAPIEX_RESULT r;
+                        if (deviceData->deviceSasToken != NULL)
+                        {
+                            /*Codes_SRS_TRANSPORTMULTITHTTP_03_001: [if a deviceSasToken exists, HTTPHeaders_ReplaceHeaderNameValuePair shall be invoked with "Authorization" as its second argument and STRING_c_str (deviceSasToken) as its third argument.]*/
+                            if (HTTPHeaders_ReplaceHeaderNameValuePair(abandonRequestHttpHeaders, "Authorization", STRING_c_str(deviceData->deviceSasToken)) != HTTP_HEADERS_OK)
+                            {
+                                r = HTTPAPIEX_ERROR;
+                                /*Codes_SRS_TRANSPORTMULTITHTTP_03_002: [If the result of the invocation of HTTPHeaders_ReplaceHeaderNameValuePair is NOT HTTP_HEADERS_OK then fallthrough.]*/
+                                LogError("Unable to replace the old SAS Token.\r\n");
+                            }
+                            else if ((r = HTTPAPIEX_ExecuteRequest(
+                                handleData->httpApiExHandle,
+                                (action == ABANDON) ? HTTPAPI_REQUEST_POST : HTTPAPI_REQUEST_DELETE,                               /*-requestType: POST                                                                                                       */
+                                STRING_c_str(fullAbandonRelativePath),              /*-relativePath: abandon relative path begin (as created by _Create) + value of ETag + "/abandon?api-version=2016-02-03"   */
+                                abandonRequestHttpHeaders,                          /*- requestHttpHeadersHandle: an HTTP headers instance containing the following                                            */
+                                NULL,                                               /*- requestContent: NULL                                                                                                   */
+                                &statusCode,                                         /*- statusCode: a pointer to unsigned int which might be examined for logging                                              */
+                                NULL,                                               /*- responseHeadearsHandle: NULL                                                                                           */
+                                NULL                                                /*- responseContent: NULL]                                                                                                 */
+                                )) != HTTPAPIEX_OK)
+                            {
+                                /*Codes_SRS_TRANSPORTMULTITHTTP_17_098: [Abandoning the message is considered successful if the HTTPAPIEX_SAS_ExecuteRequest doesn't fail and the statusCode is 204.]*/
+                                /*Codes_SRS_TRANSPORTMULTITHTTP_17_100: [Accepting a message is successful when HTTPAPIEX_SAS_ExecuteRequest completes successfully and the status code is 204.] */
+                                /*Codes_SRS_TRANSPORTMULTITHTTP_17_102: [Rejecting a message is successful when HTTPAPIEX_SAS_ExecuteRequest completes successfully and the status code is 204.] */
+                                LogError("unable to HTTPAPIEX_ExecuteRequest\r\n");
+                            }
+                        }
+                        else if ((r=HTTPAPIEX_SAS_ExecuteRequest(
 							deviceData->sasObject,
                             handleData->httpApiExHandle,
                             (action == ABANDON) ? HTTPAPI_REQUEST_POST : HTTPAPI_REQUEST_DELETE,                               /*-requestType: POST                                                                                                       */
@@ -1619,14 +1720,14 @@ static void abandonOrAcceptMessage(HTTPTRANSPORT_HANDLE_DATA* handleData, HTTPTR
                             &statusCode,                                         /*- statusCode: a pointer to unsigned int which might be examined for logging                                              */
                             NULL,                                               /*- responseHeadearsHandle: NULL                                                                                           */
                             NULL                                                /*- responseContent: NULL]                                                                                                 */
-                            ) != HTTPAPIEX_OK)
+                            )) != HTTPAPIEX_OK)
                         {
 							/*Codes_SRS_TRANSPORTMULTITHTTP_17_098: [Abandoning the message is considered successful if the HTTPAPIEX_SAS_ExecuteRequest doesn't fail and the statusCode is 204.]*/
 							/*Codes_SRS_TRANSPORTMULTITHTTP_17_100: [Accepting a message is successful when HTTPAPIEX_SAS_ExecuteRequest completes successfully and the status code is 204.] */
 							/*Codes_SRS_TRANSPORTMULTITHTTP_17_102: [Rejecting a message is successful when HTTPAPIEX_SAS_ExecuteRequest completes successfully and the status code is 204.] */
-                            LogError("unable to HTTPAPIEX_ExecuteRequest\r\n");
+                            LogError("unable to HTTPAPIEX_SAS_ExecuteRequest\r\n");
                         }
-                        else
+                        if(r == HTTPAPIEX_OK)
                         {
                             if (statusCode != 204)
                             {
@@ -1682,16 +1783,42 @@ static void DoMessages(HTTPTRANSPORT_HANDLE_DATA* handleData, HTTPTRANSPORT_PERD
             else
             {
                 unsigned int statusCode;
+                HTTPAPIEX_RESULT r;
+                if (deviceData->deviceSasToken != NULL)
+                {
+                    /*Codes_SRS_TRANSPORTMULTITHTTP_03_001: [if a deviceSasToken exists, HTTPHeaders_ReplaceHeaderNameValuePair shall be invoked with "Authorization" as its second argument and STRING_c_str (deviceSasToken) as its third argument.]*/
+                    if (HTTPHeaders_ReplaceHeaderNameValuePair(deviceData->messageHTTPrequestHeaders, "Authorization", STRING_c_str(deviceData->deviceSasToken)) != HTTP_HEADERS_OK)
+                    {
+                        r = HTTPAPIEX_ERROR;
+                        /*Codes_SRS_TRANSPORTMULTITHTTP_03_002: [If the result of the invocation of HTTPHeaders_ReplaceHeaderNameValuePair is NOT HTTP_HEADERS_OK then fallthrough.]*/
+                        LogError("Unable to replace the old SAS Token.\r\n");
+                    }
+                    else if ((r = HTTPAPIEX_ExecuteRequest(
+                        handleData->httpApiExHandle,
+                        HTTPAPI_REQUEST_GET,                                            /*requestType: GET*/
+                        STRING_c_str(deviceData->messageHTTPrelativePath),         /*relativePath: the message HTTP relative path*/
+                        deviceData->messageHTTPrequestHeaders,                     /*requestHttpHeadersHandle: message HTTP request headers created by _Create*/
+                        NULL,                                                           /*requestContent: NULL*/
+                        &statusCode,                                                    /*statusCode: a pointer to unsigned int which shall be later examined*/
+                        responseHTTPHeaders,                                            /*responseHeadearsHandle: a new instance of HTTP headers*/
+                        responseContent                                                 /*responseContent: a new instance of buffer*/
+                        )) != HTTPAPIEX_OK)
+                    {
+                        /*Codes_SRS_TRANSPORTMULTITHTTP_17_085: [If the call to HTTPAPIEX_SAS_ExecuteRequest did not executed successfully or building any part of the prerequisites of the call fails, then _DoWork shall advance to the next action in this description.] */
+                        LogError("unable to HTTPAPIEX_ExecuteRequest\r\n");
+                    }
+                }
+
                 /*Codes_SRS_TRANSPORTMULTITHTTP_17_084: [Otherwise, IoTHubTransportHttp_DoWork shall call HTTPAPIEX_SAS_ExecuteRequest passing the following parameters
-requestType: GET
-relativePath: the message HTTP relative path
-requestHttpHeadersHandle: message HTTP request headers created by _Create
-requestContent: NULL
-statusCode: a pointer to unsigned int which shall be later examined
-responseHeadearsHandle: a new instance of HTTP headers
-responseContent: a new instance of buffer] 
-*/
-                if (HTTPAPIEX_SAS_ExecuteRequest(
+                    requestType: GET
+                    relativePath: the message HTTP relative path
+                    requestHttpHeadersHandle: message HTTP request headers created by _Create
+                    requestContent: NULL
+                    statusCode: a pointer to unsigned int which shall be later examined
+                    responseHeadearsHandle: a new instance of HTTP headers
+                    responseContent: a new instance of buffer] 
+                */
+                else if ((r=HTTPAPIEX_SAS_ExecuteRequest(
 					deviceData->sasObject,
                     handleData->httpApiExHandle,     
                     HTTPAPI_REQUEST_GET,                                            /*requestType: GET*/
@@ -1701,13 +1828,12 @@ responseContent: a new instance of buffer]
                     &statusCode,                                                    /*statusCode: a pointer to unsigned int which shall be later examined*/
                     responseHTTPHeaders,                                            /*responseHeadearsHandle: a new instance of HTTP headers*/
                     responseContent                                                 /*responseContent: a new instance of buffer*/
-                    ) 
-                    != HTTPAPIEX_OK)
+                    )) != HTTPAPIEX_OK)
                 {
                     /*Codes_SRS_TRANSPORTMULTITHTTP_17_085: [If the call to HTTPAPIEX_SAS_ExecuteRequest did not executed successfully or building any part of the prerequisites of the call fails, then _DoWork shall advance to the next action in this description.] */
-                    LogError("unable to HTTPAPIEX_ExecuteRequest\r\n");
+                    LogError("unable to HTTPAPIEX_SAS_ExecuteRequest\r\n");
                 }
-                else
+                if(r == HTTPAPIEX_OK)
                 { 
                         /*HTTP dialogue was succesfull*/
                         if (timeNow == (time_t)(-1))
