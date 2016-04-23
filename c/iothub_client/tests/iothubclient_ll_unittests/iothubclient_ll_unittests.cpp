@@ -63,6 +63,7 @@ static bool checkProtocolGatewayIsNull;
 
 #define TEST_DEVICE_ID "theidofTheDevice"
 #define TEST_DEVICE_KEY "theKeyoftheDevice"
+#define TEST_DEVICE_SAS "theSasOfTheDevice"
 #define TEST_IOTHUBNAME "theNameoftheIotHub"
 #define TEST_IOTHUBSUFFIX "theSuffixoftheIotHubHostname"
 #define TEST_AUTHORIZATIONKEY "theAuthorizationKey"
@@ -90,6 +91,7 @@ static const IOTHUB_CLIENT_CONFIG TEST_CONFIG =
     provideFAKE,            /* IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol;   */
     TEST_DEVICE_ID,         /* const char* deviceId;                        */
     TEST_DEVICE_KEY,        /* const char* deviceKey;                       */
+    TEST_DEVICE_SAS,   /* const char* deviceSasToken;                  */
     TEST_IOTHUBNAME,        /* const char* iotHubName;                      */
     TEST_IOTHUBSUFFIX,      /* const char* iotHubSuffix;                    */
 };
@@ -507,7 +509,10 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
             .IgnoreArgument(1)
             .SetReturn((TRANSPORT_LL_HANDLE)0x42);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+        STRICT_EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
+            .IgnoreArgument(1);
+        
+        STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
 			.IgnoreAllArguments();
 
         ///act
@@ -608,6 +613,8 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
             .IgnoreArgument(1)
             .SetReturn((TRANSPORT_LL_HANDLE)0x42);
 
+        STRICT_EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
+            .IgnoreArgument(1);
         STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
             .IgnoreAllArguments();
 
@@ -721,7 +728,9 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
 		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Create(IGNORED_PTR_ARG))
 			.IgnoreArgument(1);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+        STRICT_EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
+            .IgnoreArgument(1);
+        STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
 			.IgnoreAllArguments();
 
 		///act
@@ -821,7 +830,9 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
 		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Create(IGNORED_PTR_ARG))
 			.IgnoreArgument(1);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+        STRICT_EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
+            .IgnoreArgument(1);
+        STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
 			.IgnoreAllArguments();
 
 		///act
@@ -1940,10 +1951,13 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
 		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Destroy(IGNORED_PTR_ARG))
 			.IgnoreArgument(1);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, &device, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
-			.IgnoreArgument(1)
-			.IgnoreArgument(3)
-			.IgnoreArgument(4)
+        STRICT_EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
+            .IgnoreArgument(1);
+        STRICT_EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG))
+            .IgnoreArgument(1);
+
+        STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .IgnoreAllArguments()
 			.SetFailReturn((IOTHUB_DEVICE_HANDLE)NULL);
 
 		///act
@@ -1979,8 +1993,12 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
             .IgnoreArgument(1)
             .SetReturn((TRANSPORT_LL_HANDLE)0x42);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register((TRANSPORT_LL_HANDLE)0x42, &device, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
-			.IgnoreArgument(3)
+        STRICT_EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
+            .IgnoreArgument(1);
+
+        STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register((TRANSPORT_LL_HANDLE)0x42, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .IgnoreArgument(2)
+            .IgnoreArgument(3)
 			.IgnoreArgument(4);
 
         ///act
@@ -2047,7 +2065,10 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
 		STRICT_EXPECTED_CALL(mocks, DList_InitializeListHead(IGNORED_PTR_ARG))
 			.IgnoreArgument(1);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(TEST_DEVICE_CONFIG.transportHandle, &device, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+        STRICT_EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
+            .IgnoreArgument(1);
+        STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(TEST_DEVICE_CONFIG.transportHandle, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+            .IgnoreArgument(2)
 			.IgnoreArgument(3)
 			.IgnoreArgument(4);
 
@@ -2084,9 +2105,14 @@ BEGIN_TEST_SUITE(iothubclient_ll_unittests)
 		STRICT_EXPECTED_CALL(mocks, DList_InitializeListHead(IGNORED_PTR_ARG))
 			.IgnoreArgument(1);
 
-		STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(TEST_DEVICE_CONFIG.transportHandle, &device, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
-			.IgnoreArgument(3)
-			.IgnoreArgument(4)
+        STRICT_EXPECTED_CALL(mocks, gballoc_malloc(IGNORED_NUM_ARG))
+            .IgnoreArgument(1);
+        STRICT_EXPECTED_CALL(mocks, gballoc_free(IGNORED_PTR_ARG))
+            .IgnoreArgument(1);
+        STRICT_EXPECTED_CALL(mocks, FAKE_IoTHubTransport_Register(TEST_DEVICE_CONFIG.transportHandle, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG))
+			.IgnoreArgument(2)
+            .IgnoreArgument(3)
+            .IgnoreArgument(4)
 			.SetFailReturn((IOTHUB_DEVICE_HANDLE)NULL);
 
 		///act

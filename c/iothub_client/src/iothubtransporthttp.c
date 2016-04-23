@@ -529,15 +529,18 @@ IOTHUB_DEVICE_HANDLE IoTHubTransportHttp_Register(TRANSPORT_LL_HANDLE handle, co
 			bool was_resultCreated_ok = ((result = malloc(sizeof(HTTPTRANSPORT_PERDEVICE_DATA))) != NULL);
 			bool was_create_deviceId_ok = was_resultCreated_ok && create_deviceId(result, device->deviceId);
 
-            if (device->deviceSasToken != NULL)
+            if (was_create_deviceId_ok)
             {
-                was_create_deviceSasToken_ok = was_create_deviceId_ok && create_deviceSasToken(result, device->deviceSasToken);
-                result->deviceKey = NULL;
-            }
-            else if (device->deviceKey != NULL)
-            {
-                was_create_deviceKey_ok = was_create_deviceId_ok && create_deviceKey(result, device->deviceKey);
-                result->deviceSasToken = NULL;
+                if (device->deviceSasToken != NULL)
+                {
+                    was_create_deviceSasToken_ok = create_deviceSasToken(result, device->deviceSasToken);
+                    result->deviceKey = NULL;
+                }
+                else if (device->deviceKey != NULL)
+                {
+                    was_create_deviceKey_ok = create_deviceKey(result, device->deviceKey);
+                    result->deviceSasToken = NULL;
+                }
             }
 
             bool was_eventHTTPrelativePath_ok = (was_create_deviceKey_ok || was_create_deviceSasToken_ok) && create_eventHTTPrelativePath(result, device->deviceId);
