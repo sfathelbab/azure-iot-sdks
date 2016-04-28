@@ -29,6 +29,7 @@
 #include <stdio.h>
 
 #define SAS_TOKEN_DEFAULT_LIFETIME  3600
+#define SAS_REFRESH_MULTIPLIER      .8
 #define EPOCH_TIME_T_VALUE          0
 #define DEFAULT_MQTT_KEEPALIVE      4*60 // 4 min
 #define DEFAULT_PORT_NUMBER         8883
@@ -38,6 +39,8 @@
 #define SAS_TOKEN_DEFAULT_LEN       10
 #define RESEND_TIMEOUT_VALUE_MIN    1*60
 #define MAX_SEND_RECOUNT_LIMIT      2
+#define DEFAULT_CONNECTION_INTERVAL 30
+#define FAILED_CONN_BACKOFF_VALUE   5
 
 static const char* DEVICE_MSG_TOPIC = "devices/%s/messages/devicebound/#";
 static const char* DEVICE_DEVICE_TOPIC = "devices/%s/messages/events/";
@@ -91,6 +94,9 @@ typedef struct MQTTTRANSPORT_HANDLE_DATA_TAG
     CONTROL_PACKET_TYPE currPacketState;
     XIO_HANDLE xioTransport;
     int keepAliveValue;
+    uint64_t mqtt_connect_time;
+    size_t connectFailCount;
+    uint64_t connectTick;
 } MQTTTRANSPORT_HANDLE_DATA, *PMQTTTRANSPORT_HANDLE_DATA;
 
 typedef struct MQTT_MESSAGE_DETAILS_LIST_TAG
@@ -145,7 +151,7 @@ static STRING_HANDLE addPropertiesTouMqttMessage(IOTHUB_MESSAGE_HANDLE iothub_me
         {
             if (propertyCount != 0)
             {
-                for (size_t index = 0; index < propertyCount; index++)
+                for (size_t index = 0; index < propertyCount && result != NULL; index++)
                 {
                     size_t len = strlen(propertyKeys[index]) + strlen(propertyValues[index]) + 2;
                     char* propValues = malloc(len+1);
@@ -153,7 +159,6 @@ static STRING_HANDLE addPropertiesTouMqttMessage(IOTHUB_MESSAGE_HANDLE iothub_me
                     {
                         STRING_delete(result);
                         result = NULL;
-                        break;
                     }
                     else
                     {
@@ -162,7 +167,6 @@ static STRING_HANDLE addPropertiesTouMqttMessage(IOTHUB_MESSAGE_HANDLE iothub_me
                         {
                             STRING_delete(result);
                             result = NULL;
-                            break;
                         }
                         free(propValues);
                     }
@@ -305,7 +309,7 @@ static int extractMqttProperties(IOTHUB_MESSAGE_HANDLE IoTHubMessage, MQTT_MESSA
     }
     else
     {
-        LogError("Unable to create Tokenizer object .");
+        LogError("Unable to create Tokenizer object.");
         result = __LINE__;
     }
     STRING_delete(mqttTopic);
@@ -612,7 +616,7 @@ static int GetTransportProviderIfNecessary(PMQTTTRANSPORT_HANDLE_DATA transportS
 
 static int SendMqttConnectMsg(PMQTTTRANSPORT_HANDLE_DATA transportState)
 {
-    int result = 0;
+    int result;
 
     // Construct SAS token
     size_t secSinceEpoch = (size_t)(difftime(get_time(NULL), EPOCH_TIME_T_VALUE) + 0);
@@ -636,18 +640,25 @@ static int SendMqttConnectMsg(PMQTTTRANSPORT_HANDLE_DATA transportState)
         options.useCleanSession = false;
         options.qualityOfServiceValue = DELIVER_AT_LEAST_ONCE;
 
-        if ((result = GetTransportProviderIfNecessary(transportState)) == 0)
+        if (GetTransportProviderIfNecessary(transportState) == 0)
         {
             if (mqtt_client_connect(transportState->mqttClient, transportState->xioTransport, &options) != 0)
             {
                 LogError("failure connecting to address %s:%d.", STRING_c_str(transportState->hostAddress), transportState->portNum);
+                xio_destroy(transportState->xioTransport);
+                transportState->xioTransport = NULL;
                 result = __LINE__;
             }
             else
             {
+                (void)tickcounter_get_current_ms(g_msgTickCounter, &transportState->mqtt_connect_time);
                 result = 0;
             }
         }
+        else
+        {
+            result = __LINE__;
+    }
     }
     STRING_delete(emptyKeyName);
     STRING_delete(sasToken);
@@ -657,17 +668,60 @@ static int SendMqttConnectMsg(PMQTTTRANSPORT_HANDLE_DATA transportState)
 static int InitializeConnection(PMQTTTRANSPORT_HANDLE_DATA transportState)
 {
     int result = 0;
-    if (!transportState->connected && !transportState->destroyCalled)
+
+    // Make sure we're not destroying the object
+    if (!transportState->destroyCalled)
     {
+        // If we are not connected then check to see if we need 
+        // to back off the connecting to the server
+        if (!transportState->connected)
+        {
+            // Default makeConnection as true if something goes wrong we'll make the connection
+            bool makeConnection = true;
+            // If we've failed for FAILED_CONN_BACKOFF_VALUE straight times them let's slow down connection
+            // to the service
+            if (transportState->connectFailCount > FAILED_CONN_BACKOFF_VALUE)
+            {
+                uint64_t currentTick;
+                if (tickcounter_get_current_ms(g_msgTickCounter, &currentTick) == 0)
+                {
+                    if ( ((currentTick - transportState->connectTick)/1000) <= DEFAULT_CONNECTION_INTERVAL)
+                    {
+                        result = __LINE__;
+                        makeConnection = false;
+                    }
+                }
+            }
+
+            if (makeConnection)
+    {
+                (void)tickcounter_get_current_ms(g_msgTickCounter, &transportState->connectTick);
         if (SendMqttConnectMsg(transportState) != 0)
         {
-            transportState->connected = false;
+                    transportState->connectFailCount++;
             result = __LINE__;
         }
         else
         {
+                    transportState->connectFailCount = 0;
             transportState->connected = true;
             result = 0;
+        }
+    }
+        }
+
+        if (transportState->connected)
+        {
+            // We are connected and not being closed, so does SAS need to reconnect?
+            uint64_t current_time;
+            (void)tickcounter_get_current_ms(g_msgTickCounter, &current_time);
+            if ((current_time - transportState->mqtt_connect_time) / 1000 > (SAS_TOKEN_DEFAULT_LIFETIME*SAS_REFRESH_MULTIPLIER))
+            {
+                (void)mqtt_client_disconnect(transportState->mqttClient);
+                transportState->subscribed = false;
+                transportState->connected = false;
+                transportState->currPacketState = UNKNOWN_TYPE;
+            }
         }
     }
     return result;
@@ -794,6 +848,8 @@ static PMQTTTRANSPORT_HANDLE_DATA InitializeTransportHandleData(const IOTHUB_CLI
                 state->waitingToSend = waitingToSend;
                 state->currPacketState = CONNECT_TYPE;
                 state->keepAliveValue = DEFAULT_MQTT_KEEPALIVE;
+                state->connectFailCount = 0;
+                state->connectTick = 0;
             }
         }
     }
@@ -866,6 +922,7 @@ static void DisconnectFromClient(PMQTTTRANSPORT_HANDLE_DATA transportState)
 
     (void)mqtt_client_disconnect(transportState->mqttClient);
     xio_destroy(transportState->xioTransport);
+    transportState->xioTransport = NULL;
 
     transportState->connected = false;
     transportState->currPacketState = DISCONNECT_TYPE;
@@ -945,7 +1002,7 @@ void IoTHubTransportMqtt_Unsubscribe(IOTHUB_DEVICE_HANDLE handle)
     }
     else
     {
-        LogError("Invalid argument to unsubscribe (NULL). ");
+        LogError("Invalid argument to unsubscribe (NULL).");
     }
 }
 
@@ -1073,7 +1130,7 @@ IOTHUB_CLIENT_RESULT IoTHubTransportMqtt_GetSendStatus(IOTHUB_DEVICE_HANDLE hand
     if (handle == NULL || iotHubClientStatus == NULL)
     {
         /* Codes_SRS_IOTHUB_MQTT_TRANSPORT_07_023: [IoTHubTransportMqtt_GetSendStatus shall return IOTHUB_CLIENT_INVALID_ARG if called with NULL parameter.] */
-        LogError("invalid arument. ");
+        LogError("invalid arument.");
         result = IOTHUB_CLIENT_INVALID_ARG;
     }
     else
@@ -1105,7 +1162,7 @@ IOTHUB_CLIENT_RESULT IoTHubTransportMqtt_SetOption(TRANSPORT_LL_HANDLE handle, c
         )
     {
         result = IOTHUB_CLIENT_INVALID_ARG;
-        LogError("invalid parameter (NULL) passed to clientTransportAMQP_SetOption");
+        LogError("invalid parameter (NULL) passed to clientTransportAMQP_SetOption.");
     }
     else
     {
